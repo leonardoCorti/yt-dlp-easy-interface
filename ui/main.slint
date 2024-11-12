@@ -1,0 +1,47 @@
+import { Button, LineEdit, HorizontalBox, TextEdit, VerticalBox, ComboBox } from "std-widgets.slint";
+
+export component ytdlrs inherits Window {
+	title: "ytdlrs";
+	width: 350px;
+
+	in-out property <string> format_selection <=> format-combo.current-value;
+	in-out property <string> speed_selection <=> speed-combo.current-value;
+
+	pure callback download(string, string, string) -> bool;
+
+	layout := VerticalBox {
+		HorizontalBox {
+		    alignment: LayoutAlignment.stretch;
+			format_combo := ComboBox {
+				y: 0px;
+				width: self.preferred-width;
+				height: self.preferred-height;
+				model: ["audio", "video"];
+				current-value: "audio";
+				}
+			speed_combo := ComboBox {
+				y: 0px;
+				width: self.preferred-width;
+				height: self.preferred-height;
+				model: ["lento", "veloce"];
+				current-value: "veloce";
+				enabled: format-combo.current-value == "video";
+				}
+			}
+		urls := TextEdit {
+			min-height: 50px;
+			opacity: 1;
+			placeholder-text: "link";
+			text: "";
+			wrap: TextWrap.char-wrap;
+			}
+		Button {
+			height: 50px;
+			checkable: false;
+			checked: false;
+			colorize-icon: false;
+			text: "DOWNLOAD";
+			clicked => { root.download(urls.text, format-combo.current-value, speed-combo.current-value) }
+			}
+		}
+	}
