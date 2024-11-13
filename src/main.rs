@@ -40,7 +40,7 @@ async fn main() {
         .log_to_file(FileSpec::default().directory(env::temp_dir()))
         .format(flexi_logger::detailed_format)
         .rotate(
-            Criterion::Age(Age::Day), 
+            Criterion::Age(Age::Second), 
             Naming::Timestamps, 
             Cleanup::KeepLogFiles(5))
         .start().unwrap();
@@ -56,6 +56,7 @@ async fn main() {
     downloader.update().await;
 
     let handles: Arc<Mutex<Option<task::JoinHandle<()>>>> = Arc::new(Mutex::new(None));
+    let downloader_handle: Arc<Mutex<Option<task::JoinHandle<()>>>> = Arc::new(Mutex::new(None));
 
     let handles_clone = Arc::clone(&handles);
     let handles_clone_second = Arc::clone(&handles);
@@ -107,7 +108,6 @@ struct Ytdlp {
     ffmpeg_path: PathBuf,
 }
 
-
 impl Ytdlp {
     pub async fn update(&self) {
         let _cmd = Command::new(&self.ytdlp_path)
@@ -139,6 +139,7 @@ impl Ytdlp {
                     },
                     _ => {
                         error!("couldn't recognize the speed");
+                        return;
                     }
                 }
                 cmd.arg("mp4");
@@ -151,6 +152,7 @@ impl Ytdlp {
             },
             _ => {
                 error!("couldn't recognize the format");
+                return;
             }
         }
 
@@ -163,4 +165,3 @@ impl Ytdlp {
             String::from_utf8(out.stderr).unwrap());
     }
 }
-
