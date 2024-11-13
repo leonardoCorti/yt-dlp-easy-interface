@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 
-use flexi_logger::{FileSpec, Logger};
+use flexi_logger::{Age, Cleanup, Criterion, FileSpec, Logger, Naming};
 use log::{error, info, trace};
 
 use tokio::task;
@@ -39,6 +39,10 @@ async fn main() {
     Logger::try_with_env_or_str("info").unwrap()
         .log_to_file(FileSpec::default().directory(env::temp_dir()))
         .format(flexi_logger::detailed_format)
+        .rotate(
+            Criterion::Age(Age::Day), 
+            Naming::Timestamps, 
+            Cleanup::KeepLogFiles(5))
         .start().unwrap();
 
     let yt_dlp_path = write_to_temp_file(YT_DLP, "yt-dlp.exe")
@@ -74,12 +78,22 @@ async fn main() {
     ui.on_download(move |element, format, speed| {
         let downloader = downloader.clone();
         let handle = task::spawn(async move {
-            downloader.download(&element, &format, &speed).await;
+            for e in element.lines() {
+                downloader.download(e, &format, &speed).await;
+            }
         });
         *handles_clone.lock().unwrap() = Some(handle);
         return true;
     }); 
     ui.run().unwrap();
+
+    let mut lock = handles.lock().unwrap();
+    let process = lock.as_mut().unwrap();
+    if !process.is_finished(){
+        info!("process isn't finished, trying abort");
+        process.abort();
+        info!("aborted");
+    }
 
     std::fs::remove_file(yt_dlp_path)
         .expect("Failed to remove yt-dlp temp file");
@@ -147,7 +161,6 @@ impl Ytdlp {
         info!("output: {}, {}",
             String::from_utf8(out.stdout).unwrap(),
             String::from_utf8(out.stderr).unwrap());
-        //cmd.spawn().unwrap().wait().unwrap();
     }
 }
 
