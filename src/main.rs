@@ -1,13 +1,14 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![windows_subsystem = "windows"]
 use std::env;
 use std::fs::File;
 use std::io::{self, Write};
+use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 
-use flexi_logger::Logger;
-use log::{error, info};
+use flexi_logger::{FileSpec, Logger};
+use log::{error, info, trace};
 
 use tokio::task;
 
@@ -36,6 +37,8 @@ fn write_to_temp_file(data: &[u8], filename: &str) -> io::Result<std::path::Path
 #[tokio::main]
 async fn main() {
     Logger::try_with_env_or_str("info").unwrap()
+        .log_to_file(FileSpec::default().directory(env::temp_dir()))
+        .format(flexi_logger::detailed_format)
         .start().unwrap();
 
     let yt_dlp_path = write_to_temp_file(YT_DLP, "yt-dlp.exe")
@@ -46,25 +49,37 @@ async fn main() {
         ytdlp_path: yt_dlp_path.clone(),
         ffmpeg_path: ffmpeg_path.clone() 
     };
+    downloader.update().await;
 
-    let handles: Arc<Mutex<Vec<task::JoinHandle<()>>>> = Arc::new(Mutex::new(Vec::new()));
+    let handles: Arc<Mutex<Option<task::JoinHandle<()>>>> = Arc::new(Mutex::new(None));
 
     let handles_clone = Arc::clone(&handles);
+    let handles_clone_second = Arc::clone(&handles);
     let ui = ytdlrs::new().unwrap();
+    ui.on_is_running(move || {
+        let handle =  handles_clone_second.lock().unwrap();
+        trace!("check start!");
+        if !handle.is_some() {
+            trace!("checking, handle is not some!");
+            return false;
+        }
+        let process = handle.as_ref().unwrap();
+        trace!("checking extracted process handle!");
+        if process.is_finished() {
+            trace!("checking, the process has finished!");
+            return false;
+        }
+        return true;
+    });
     ui.on_download(move |element, format, speed| {
         let downloader = downloader.clone();
         let handle = task::spawn(async move {
             downloader.download(&element, &format, &speed).await;
         });
-        handles_clone.lock().unwrap().push(handle);
+        *handles_clone.lock().unwrap() = Some(handle);
         return true;
     }); 
     ui.run().unwrap();
-
-    let mut task = handles.lock().unwrap();
-    for handle in task.iter_mut() {
-        handle.await.unwrap();
-    }
 
     std::fs::remove_file(yt_dlp_path)
         .expect("Failed to remove yt-dlp temp file");
@@ -80,12 +95,22 @@ struct Ytdlp {
 
 
 impl Ytdlp {
+    pub async fn update(&self) {
+        let _cmd = Command::new(&self.ytdlp_path)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .creation_flags(0x08000000)
+            .arg("-U").output().unwrap();
+    }
     pub async fn download(&self, element: &str, format: &str, speed: &str) {
-        println!("scaricando serio {element}");
-        println!("{format} in {speed}");
+        info!("scaricando serio {element}");
+        info!("{format} in {speed}");
         let mut cmd = Command::new(&self.ytdlp_path);
-        cmd.stdin(Stdio::inherit())
-            .stdout(Stdio::inherit());
+        cmd.stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .creation_flags(0x08000000);
         cmd.arg("--ffmpeg-location")
             .arg(&self.ffmpeg_path);
 
@@ -117,7 +142,12 @@ impl Ytdlp {
 
         cmd.arg(&element);
 
-        cmd.spawn().unwrap().wait().unwrap();
+        let out = cmd.output().unwrap();
+        info!("status: {}", out.status);
+        info!("output: {}, {}",
+            String::from_utf8(out.stdout).unwrap(),
+            String::from_utf8(out.stderr).unwrap());
+        //cmd.spawn().unwrap().wait().unwrap();
     }
 }
 

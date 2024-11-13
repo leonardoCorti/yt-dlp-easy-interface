@@ -1,17 +1,20 @@
-import { Button, LineEdit, HorizontalBox, TextEdit, VerticalBox, ComboBox } from "std-widgets.slint";
+import { Button, LineEdit, HorizontalBox, TextEdit, VerticalBox, ComboBox, Spinner } from "std-widgets.slint";
 
 export component ytdlrs inherits Window {
+	no-frame: false;
 	title: "ytdlrs";
 	width: 350px;
 
 	in-out property <string> format_selection <=> format-combo.current-value;
 	in-out property <string> speed_selection <=> speed-combo.current-value;
+	in-out property <bool> working: false;
 
 	pure callback download(string, string, string) -> bool;
+	pure callback is_running() -> bool;
 
 	layout := VerticalBox {
 		HorizontalBox {
-		    alignment: LayoutAlignment.stretch;
+			alignment: LayoutAlignment.stretch;
 			format_combo := ComboBox {
 				y: 0px;
 				model: ["audio", "video"];
@@ -31,13 +34,33 @@ export component ytdlrs inherits Window {
 			text: "";
 			wrap: TextWrap.char-wrap;
 			}
-		Button {
-			height: 50px;
-			checkable: false;
-			checked: false;
-			colorize-icon: false;
-			text: "DOWNLOAD";
-			clicked => { root.download(urls.text, format-combo.current-value, speed-combo.current-value) }
+		HorizontalLayout {
+			Button {
+				enabled: !working && urls.text != "";
+				height: 50px;
+				checkable: false;
+				checked: false;
+				colorize-icon: false;
+				text: "DOWNLOAD";
+				clicked => { 
+					root.download(urls.text, format-combo.current-value, speed-combo.current-value) 
+					}
+				}
+			Spinner {
+				indeterminate: working;
+				progress: 100;
+				visible: true;
+				}
+			}
+		}
+	Timer {
+		interval: 1000*1ms;
+		triggered() => {
+				if is_running() {
+					working = true;
+				} else {
+					working = false;
+				}
 			}
 		}
 	}
