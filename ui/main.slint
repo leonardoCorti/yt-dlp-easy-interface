@@ -14,15 +14,11 @@ export component ytdlrs inherits Window {
 		    alignment: LayoutAlignment.stretch;
 			format_combo := ComboBox {
 				y: 0px;
-				width: self.preferred-width;
-				height: self.preferred-height;
 				model: ["audio", "video"];
 				current-value: "audio";
 				}
 			speed_combo := ComboBox {
 				y: 0px;
-				width: self.preferred-width;
-				height: self.preferred-height;
 				model: ["lento", "veloce"];
 				current-value: "veloce";
 				enabled: format-combo.current-value == "video";
