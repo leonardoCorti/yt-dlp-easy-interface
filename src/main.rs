@@ -1,7 +1,7 @@
 #![windows_subsystem = "windows"]
 use std::env;
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -40,7 +40,7 @@ async fn main() {
         .log_to_file(FileSpec::default().directory(env::temp_dir()))
         .format(flexi_logger::detailed_format)
         .rotate(
-            Criterion::Age(Age::Second), 
+            Criterion::Age(Age::Day), 
             Naming::Timestamps, 
             Cleanup::KeepLogFiles(5))
         .start().unwrap();
@@ -100,6 +100,7 @@ async fn main() {
         .expect("Failed to remove yt-dlp temp file");
     std::fs::remove_file(ffmpeg_path)
         .expect("Failed to remove yt-dlp temp file");
+    info!("removed temp files");
 }
 
 #[derive(Clone)]
@@ -158,10 +159,15 @@ impl Ytdlp {
 
         cmd.arg(&element);
 
-        let out = cmd.output().unwrap();
-        info!("status: {}", out.status);
+        let child = cmd.spawn().unwrap();
+        //let out = cmd.output().unwrap();
+        let mut out: Vec<u8> = Vec::new();
+        child.stdout.unwrap().read_to_end(&mut out).unwrap();
+        let mut err: Vec<u8> = Vec::new();
+        child.stderr.unwrap().read_to_end(&mut err).unwrap();
+        
         info!("output: {}, {}",
-            String::from_utf8(out.stdout).unwrap(),
-            String::from_utf8(out.stderr).unwrap());
+            String::from_utf8(out).unwrap(),
+            String::from_utf8(err).unwrap());
     }
 }
