@@ -45,9 +45,9 @@ async fn main() {
             Cleanup::KeepLogFiles(5))
         .start().unwrap();
 
-    let yt_dlp_path = write_to_temp_file(YT_DLP, "yt-dlp.exe")
+    let yt_dlp_path = write_to_temp_file(YT_DLP, "yt-dlp-custom.exe")
         .expect("Failed to write yt-dlp executable to a temp file");
-    let ffmpeg_path = write_to_temp_file(FFMPEG, "ffmpeg.exe")
+    let ffmpeg_path = write_to_temp_file(FFMPEG, "ffmpeg-custom.exe")
         .expect("Failed to write ffmpeg executable to a temp file");
     let downloader = Ytdlp { 
         ytdlp_path: yt_dlp_path.clone(),
@@ -56,7 +56,6 @@ async fn main() {
     downloader.update().await;
 
     let handles: Arc<Mutex<Option<task::JoinHandle<()>>>> = Arc::new(Mutex::new(None));
-    let downloader_handle: Arc<Mutex<Option<task::JoinHandle<()>>>> = Arc::new(Mutex::new(None));
 
     let handles_clone = Arc::clone(&handles);
     let handles_clone_second = Arc::clone(&handles);
@@ -93,6 +92,16 @@ async fn main() {
     if !process.is_finished(){
         info!("process isn't finished, trying abort");
         process.abort();
+        Command::new("taskkill")
+            .arg("/IM")
+            .arg("yt-dlp-custom.exe")
+            .creation_flags(0x08000000)
+            .arg("/F").output().unwrap();
+        Command::new("taskkill")
+            .arg("/IM")
+            .arg("ffmpeg-custom.exe")
+            .creation_flags(0x08000000)
+            .arg("/F").output().unwrap();
         info!("aborted");
     }
 
