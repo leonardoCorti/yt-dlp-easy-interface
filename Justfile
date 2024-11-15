@@ -22,7 +22,6 @@ build:
 clean:
 	cargo clean 
 	rm -fr test
-	rm -fr release
 
 #create test directory
 test: build
