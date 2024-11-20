@@ -6,3 +6,5 @@ It supports only windows.
 
 # build instructions
 you will need to create a "resources" directory and put there ffmpeg.exe and yt-dlp.exe, then you can `cargo build` and it should work
+
+the first build can be done with `just deps release` to first download the updated dependencies and then build the program.

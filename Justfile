@@ -22,6 +22,7 @@ build:
 clean:
 	cargo clean 
 	rm -fr test
+	rm ./resources/*.exe
 
 #create test directory
 test: build
@@ -29,3 +30,6 @@ test: build
 	mkdir test
 	cp {{debug_bin}} ./test
 
+#download dependencies
+deps:
+	cd resources && ./download_executables.sh
